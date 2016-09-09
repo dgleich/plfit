@@ -15,6 +15,8 @@ plfit: $(plfitfiles)
 degsfiles := $(shell find $(DEGSDIR) -type f -name '*.degs')
 eigsfiles := $(shell find $(EIGSDIR) -type f -name '*.eigs')
 
+degs: $(degsfiles:.degs=.plfit)
+
 plfiles: $(degsfiles:.degs=.plfit) $(eigsfiles:.eigs=.plfit)
 
 # all the targets are the degree files converted into plfit files
@@ -26,6 +28,16 @@ plfiles: $(degsfiles:.degs=.plfit) $(eigsfiles:.eigs=.plfit)
 %.plfit : %.degs
 	tail -n +2 $< | ./plfit -M -p exact > $@ 
     
-%.plfit : %.eigs
-	sed 's/^-//' $< | ./plfit -M -p exact > $@
+%.adjacency.plfit : %.adjacency.eigs
+	python remove_zeros.py $< | ./plfit -M -p exact > $@
 
+%.laplacian.plfit : %.laplacian.eigs
+	python remove_zeros.py $< | ./plfit -M -p exact > $@
+
+.PHONY: all cleanzero
+
+cleanzero: 
+	find $(DEGSDIR) -type f -name '*.plfit' -size 0 -exec rm -f '{}' \; 
+
+analyze:
+	python analyze_plfits.py
