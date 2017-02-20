@@ -1,0 +1,567 @@
+import sys
+from sys import path
+path.append("/homes/eikmeier/plfit/src")
+import numpy as np
+import pandas as pd
+import os
+import re
+import csv
+import matplotlib
+matplotlib.use('GTKAgg')
+import matplotlib.pyplot as plt
+import math
+
+df = pd.DataFrame.from_csv('Matrix_Info')
+
+
+#COLUMNS IN df:
+# adj_alpha, adj_p, adj_xmin,
+# deg_alpha, deg_p, deg_xmin,
+# lap_alpha, lap_p, lap_xmin,
+# largest_eig, name,
+# resample_alpha, resample_p, resample_xmin,
+# size, subtype, types
+
+
+######ANALYSIS OF "OTHER" CATEGORY#####
+
+#Relevant = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'].isin(['other', 'facebook', 'Erdos']))]
+Relevant = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'other')]
+plt.scatter(Relevant['deg_alpha'], Relevant['adj_alpha'])
+#for label, x, y in zip(Relevant['name'], Relevant['deg_alpha'], Relevant['adj_alpha']):
+#        plt.annotate(
+#                    label,
+#                    xy = (x, y), xytext = (-20, 20),
+#                    textcoords = 'offset points', ha = 'right', va = 'bottom',
+#                    arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
+plt.title('Other')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+plt.show()
+
+Other = df[(df['deg_p'] >=0.1) & (df['types'] == 'other')]
+twopointfive = Other[ Other['deg_alpha'] >2.5 ]
+three = Other[Other['deg_alpha']>=3.0 ]
+threepointfive = Other[Other['deg_alpha']>=3.5 ]
+print len(twopointfive), len(three), len(threepointfive)
+
+#### In 'other group, plot size vs largest eigenvalue in log-log
+#### 
+Grab = df[ (df['types'] == 'other') ]
+#plt.scatter( Grab['size'], Grab['largest_eig'])
+plt.loglog(Grab['size'].values, Grab['largest_eig'].values, linestyle = 'None', marker='o')
+plt.title('Other, log-log scale')
+plt.xlabel('size')
+plt.ylabel('largest eigenvalue')
+plt.show()
+
+
+
+Grab2 = df[ (df['types'] == 'model') ]
+#plt.scatter( Grab2['size'], Grab2['largest_eig'] )
+#for label, x, y in zip(Grab2['name'], Grab2['size'], Grab2['largest_eig']):
+#            plt.annotate(
+#                                    label,
+#                                    xy = (x, y), xytext = (-20, 20),
+#                                    textcoords = 'offset points', ha = 'right', va = 'bottom',
+#                            arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
+
+#plt.title('Models')
+#plt.xlabel('size')
+#plt.ylabel('largest eigenvalue')
+#plt.show()
+
+
+
+
+
+#### In class 'other', make a histogram of alpha-eigs
+####
+eigother = df[(df['adj_p'] >= 0.1)& (df['types'] == 'other')]
+plt.hist(eigother['adj_alpha'].values, bins = 40)
+plt.title('Other')
+plt.xlabel('alpha in the original eigenvalues')
+plt.ylabel('count')
+plt.show()
+#three = eigother[ (eigother['adj_alpha'] >= 3.0) ]
+#print len(three)
+#threepointfive = eigother[ (eigother['adj_alpha'] >= 3.5) ]
+#print len(threepointfive)
+
+
+#### In class 'other', make a histogram of alpha-laplacian-eigs
+####
+lapother = df[(df['lap_p'] >= 0.1) & (df['types'] == 'other')]
+#twopointfive = lapother[ (lapother['lap_alpha'] >= 2.5) ]
+#print len(twopointfive)
+#three =lapother[ (lapother['lap_alpha'] >= 3.0) ]
+#print len(three)
+#threepointfive = lapother[ (lapother['lap_alpha'] >= 3.5) ]
+#print len(threepointfive)
+
+plt.hist(lapother['lap_alpha'].values, bins = 30)
+plt.title('Other')
+plt.xlabel('alpha in the laplacian eigenvalues')
+plt.ylabel('count')
+plt.show()
+
+#### In class 'other', make a histogram of alpha-resampled -laplacian-eigs
+####
+lapother = df[(df['resample_lap_p'] >= 0.1) & (df['types'] == 'other')]
+#twopointfive = lapother[ (lapother['resample_lap_alpha'] >= 2.5) ]
+#print len(twopointfive)
+#three =lapother[ (lapother['resample_lap_alpha'] >= 3.0) ]
+#print len(three)
+#threepointfive = lapother[ (lapother['resample_lap_alpha'] >= 3.5) ]
+#print len(threepointfive)
+
+plt.hist(lapother['resample_lap_alpha'].values, bins = 30)
+plt.title('Other')
+plt.xlabel('alpha in the resampled laplacian eigenvalues')
+plt.ylabel('count')
+plt.show()
+
+#### In class 'other', make a histogram of alpha-resampled-eigs
+####
+resampother = df[(df['resample_p'] >= 0.1) & (df['types'] == 'other')]
+#twopointfive = resampother[ (resampother['resample_alpha'] >= 2.5) ]
+#print len(twopointfive)
+#three =resampother[ (resampother['resample_alpha'] >= 3.0) ]
+#print len(three)
+#threepointfive = resampother[ (resampother['resample_alpha'] >= 3.5) ]
+#print len(threepointfive)
+
+plt.hist(resampother['resample_alpha'].values, bins = 30)
+plt.title('Other')
+plt.xlabel('alpha in the resampled eigenvalues')
+plt.ylabel('count')
+plt.show()
+
+
+
+
+####In class 'other', plot deg-alpha vs laplacian-alpha
+#### With a lst squares fit
+scatter1 = df[(df['lap_p'] >= 0.1) & (df['types'] == 'other') & (df['deg_p'] >=0.1)]
+x = scatter1['deg_alpha']
+y = scatter1['lap_alpha']
+plt.scatter(x, y, label='Original Data')
+A = np.vstack([x, np.ones(len(x))]).T
+m,c = np.linalg.lstsq(A,y)[0]
+#print m,c
+#print len(x)
+plt.plot(x, m*x+c, c ='r', label='Fitted Line')
+plt.title('Other')
+plt.xlabel('alpha in the degs')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend()
+plt.show()
+
+
+
+####In class 'other', plot deg-alpha vs resampled laplacian-alpha
+#### With a least squares fit
+scatter2 = df[(df['resample_lap_p'] >= 0.1) & (df['types'] == 'other') & (df['deg_p'] >=0.1)]
+x = scatter2['deg_alpha']
+y = scatter2['resample_lap_alpha']
+plt.scatter(x, y, label='Original Data')
+A = np.vstack([x, np.ones(len(x))]).T
+m,c = np.linalg.lstsq(A,y)[0]
+#print m,c
+#print len(x)
+plt.plot(x, m*x+c, c='r', label='Fitted Line')
+plt.title('Other')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the resampled laplacian eigs')
+plt.legend()
+plt.show()
+
+#### In class 'other', plot orignial eigs vs resampled eigs
+####
+scatter3 = df[(df['resample_p'] >= 0.1) & (df['types'] == 'other') & (df['adj_p'] >=0.1)]
+plt.scatter(scatter3['adj_alpha'], scatter3['resample_alpha'])
+plt.title('Other')
+plt.xlabel('alpha in the original eigs')
+plt.ylabel('alpha in the resampled eigs')
+plt.show()
+#print len(scatter3['adj_alpha'])
+#outlier = scatter3[ scatter3['adj_alpha'] > scatter3['resample_alpha'] ]
+#print outlier
+
+
+#### In class 'other', plot degrees vs resampled eigs
+####
+scatter4 = df[(df['resample_p'] >= 0.1) & (df['types'] == 'other') & (df['deg_p'] >=0.1)]
+plt.scatter(scatter4['deg_alpha'], scatter4['resample_alpha'])
+plt.title('Other')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the resampled eigs')
+plt.show()
+#print len(scatter4['deg_alpha'])
+#outlier = scatter4[ scatter4['deg_alpha'] > scatter4['resample_alpha']]
+#print outlier
+
+print('number of others)', len(df[df['types'] == 'other']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'other')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'other') ])  )
+print('len (both)', len(Relevant))
+print('number of resampled others', len( df[ (df['types'] == 'other') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'other') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'other') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap with power law fit)', len( df[ (df['types'] == 'other') & (df['lap_p'] >= 0.1) ] ) )
+print('Number of resampled laplacian graphs', len( df[ (df['types'] == 'other') & (df['resample_lap_alpha'] > 0.0)]) )
+print('Number of resampled laplacian graphs with power law in eigs', len( df[ (df['types'] == 'other') & (df['resample_lap_p'] >=0.1)]) )
+
+
+
+
+######ANALYSIS OF "MODEL" CATEGORY#####  
+
+Models = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'model')]
+#rpls = Models[Models['subtype'] == 'rpl']
+#pa = Models[Models['subtype'] == 'pa']
+#copy = Models[Models['subtype'] == 'copy']
+#ff = Models[Models['subtype'] == 'ff']
+#fig = plt.figure()
+#ax1 = fig.add_subplot(111)
+#ax1.scatter(rpls['deg_alpha'], rpls['adj_alpha'], c = 'b', label = 'rpl')
+#ax1.scatter(pa['deg_alpha'], pa['adj_alpha'], c = 'g', label = 'pa')
+#ax1.scatter(copy['deg_alpha'], copy['adj_alpha'], c = 'r', label = 'copy')
+#ax1.scatter(ff['deg_alpha'], ff['adj_alpha'], c ='y', label = 'ff')
+#plt.legend()
+#plt.title('Models')
+#plt.xlabel('alpha in the degrees')
+#plt.ylabel('alpha in the eigenvalues')
+#plt.show()
+
+
+#### In 'model' group, plot size vs largest eigenvalue
+####
+Models2 = df[(df['types'] == 'model') & (df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1)]
+#poweradj = Models2[(Models2['adj_p'] >= 0.1) & (Models2['deg_p'] < 0.1)]
+#powerdeg = Models2[(Models2['deg_p'] >= 0.1) & (Models2['adj_p'] < 0.1)]
+rpls = Models2[Models2['subtype'] == 'rpl']
+pa = Models2[Models2['subtype'] == 'pa']
+copy = Models2[Models2['subtype'] == 'copy']
+ff = Models2[Models2['subtype'] == 'ff']
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+#ax1.scatter(rpls['size'], rpls['largest_eig'], c = 'g', label = "rpl")
+#ax1.scatter(pa['size'], pa['largest_eig'], c = 'b', label = "pa")
+#ax1.scatter(ff['size'], ff['largest_eig'], c = 'r', label = "ff")
+ax1.scatter(copy['deg_alpha'], copy['adj_alpha'], c = 'r', label = "copy")
+#for label, x, y in zip(copy['name'], copy['deg_alpha'], copy['adj_alpha']):
+#            plt.annotate(
+#                                    label,
+#                                    xy = (x, y), xytext = (-20, 20),
+#                                    textcoords = 'offset points', ha = 'right', va = 'bottom',
+#                            arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0')
+
+plt.legend(loc = 'upper center')
+plt.title('Models')
+plt.xlabel('size')
+plt.ylabel('largest_eig')
+plt.show()
+
+
+Mod = df[ (df['types'] == 'model') & (df['lap_p'] >= 0.1) & (df['deg_p'] >= 0.1)]
+rpls = Mod[ Mod['subtype'] == 'rpl']
+pa = Mod[ Mod['subtype'] == 'pa']
+copy = Mod[ Mod['subtype'] == 'copy']
+ff = Mod[Mod['subtype'] == 'ff']
+print len(copy), len(ff), len(pa), len(rpls)
+
+#### In 'model group, histogram of alpha-eigs
+eigmodel = df[(df['adj_p'] >= 0.1)& (df['types'] == 'model')]
+plt.hist(eigmodel['adj_alpha'].values, bins = 40)
+plt.title('Models')
+plt.xlabel('alpha in the original eigenvalues')
+plt.ylabel('count')
+plt.show()
+#twopointfive = eigmodel[ (eigmodel['adj_alpha'] >= 2.5) ]
+#print len(twopointfive)
+#three = eigmodel[ (eigmodel['adj_alpha'] >= 3.0) ]
+#print len(three)
+#threepointfive = eigmodel[ (eigmodel['adj_alpha'] >= 3.5) ]
+#print len(threepointfive) 
+
+
+#### In 'model' group, histogram of laplacian-alpha-eigs
+lapmodel = df[(df['lap_p'] >= 0.1) & (df['types'] == 'model')]
+plt.hist(lapmodel['lap_alpha'].values, bins = 40)
+plt.title('Model')
+plt.xlabel('alpha in the laplacian eigenvalues')
+plt.ylabel('count')
+plt.show()
+twopointfive = lapmodel[ (lapmodel['lap_alpha'] >= 2.5) ]
+print len(twopointfive)
+three = lapmodel[ (lapmodel['lap_alpha'] >= 3.0) ]
+print len(three)
+threepointfive = lapmodel[ (lapmodel['lap_alpha'] >= 3.5) ]
+print len(threepointfive)
+
+#### In 'model' group, plot original eig vs laplacian eigs
+####
+scatter1 = df[(df['lap_p'] >= 0.1) & (df['types'] == 'model') & (df['adj_p'] >=0.1)]
+rpls = scatter1[scatter1['subtype'] == 'rpl']
+pa = scatter1[scatter1['subtype'] == 'pa']
+copy = scatter1[scatter1['subtype'] == 'copy']
+ff = scatter1[scatter1['subtype'] == 'ff']
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+
+ax1.scatter(rpls['adj_alpha'], rpls['lap_alpha'], c = 'b', label='rpl')
+ax1.scatter(pa['adj_alpha'], pa['lap_alpha'], c = 'g', label = 'pa')
+ax1.scatter(copy['adj_alpha'], copy['lap_alpha'], c = 'r', label='copy')
+ax1.scatter(ff['adj_alpha'], ff['lap_alpha'], c='y', label='ff')
+
+plt.title('Models')
+plt.xlabel('alpha in the original eigs')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend(loc = 'upper center')
+plt.show()
+
+
+#### In 'model' group, plot degs vs laplacian eigs
+####
+scatter2 = df[(df['lap_p'] >= 0.1) & (df['types'] == 'model') & (df['deg_p'] >=0.1)]
+
+#x = Scatter2['deg_alpha']
+#y = scatter2['lap_alpha']
+#A = np.vstack([x, np.ones(len(x))]).T
+#m,c = np.linalg.lstsq(A,y)[0]
+
+rpls = scatter2[scatter2['subtype'] == 'rpl']
+pa = scatter2[scatter2['subtype'] == 'pa']
+copy = scatter2[scatter2['subtype'] == 'copy']
+ff = scatter2[scatter2['subtype'] == 'ff']
+fig = plt.figure()
+
+
+
+x_rpls = rpls['deg_alpha']
+y_rpls = rpls['lap_alpha']
+plt.scatter(x_rpls, y_rpls, c = 'b', label='rpl')
+A_rpls = np.vstack([x_rpls, np.ones(len(x_rpls))]).T
+m_rpls, c_rpls = np.linalg.lstsq(A_rpls, y_rpls)[0]
+plt.plot(x_rpls, m_rpls*x_rpls + c_rpls)
+plt.title('RPL')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend(loc = 'upper center')
+plt.show()
+
+
+x_pa = pa['deg_alpha']
+y_pa = pa['lap_alpha']
+plt.scatter(x_pa, y_pa, c = 'g', label = 'pa')
+A_pa = np.vstack([x_pa, np.ones(len(x_pa))]).T
+m_pa, c_pa = np.linalg.lstsq(A_pa, y_pa)[0]
+plt.plot(x_pa, m_pa*x_pa + c_pa)
+plt.title('PA')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend(loc = 'upper center')
+plt.show()
+
+
+x_copy = copy['deg_alpha']
+y_copy = copy['lap_alpha']
+plt.scatter(x_copy, y_copy, c = 'r', label='copy')
+A_copy = np.vstack([x_copy,np.ones(len(x_copy))]).T
+m_copy, c_copy = np.linalg.lstsq(A_copy, y_copy)[0]
+plt.plot(x_copy, m_copy*x_copy + c_copy)
+plt.title('copy')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend(loc = 'upper center')
+plt.show()
+
+
+x_ff = ff['deg_alpha']
+y_ff = ff['lap_alpha']
+plt.scatter(x_ff, y_ff, c='y', label='ff')
+A_ff = np.vstack([x_ff,np.ones(len(x_ff))]).T
+m_ff, c_ff = np.linalg.lstsq(A_ff, y_ff)[0]
+plt.plot(x_ff, m_ff*x_ff + c_ff)
+plt.title('ff')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the laplacian eigs')
+plt.legend(loc = 'upper center')
+plt.show()
+
+
+print 'rpl', m_rpls, c_rpls
+print 'pa', m_pa, c_pa
+print 'copy', m_copy, c_copy
+print 'ff', m_ff, c_ff
+
+#plt.plot(x, m*x+c, label = 'Fitted Line')
+#print m,c, len(x)
+
+#plt.title('RPL')
+#plt.xlabel('alpha in the degrees')
+#plt.ylabel('alpha in the laplacian eigs')
+#plt.legend(loc = 'upper center')
+#plt.show()
+
+
+print('number of models)', len(df[df['types'] == 'model']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'model')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'model') ])  )
+print('len (both)', len(Models))
+print('number of resampled models', len( df[ (df['types'] == 'model') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'model') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'model') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'model') & (df['lap_p'] >= 0.1) ] ) )
+
+
+######ANALYSIS OF "AS" CATEGORY#####
+
+AS = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'as')]
+as20 = AS[AS['subtype'] == 'as20']
+as19 = AS[AS['subtype'] == 'as19']
+as_caida = AS[AS['subtype'] == 'as-caida']
+fig2 = plt.figure()
+ax2 = fig2.add_subplot(111)
+ax2.scatter(as20['deg_alpha'], as20['adj_alpha'], c = 'b', label = 'as20')
+ax2.scatter(as19['deg_alpha'], as19['adj_alpha'], c = 'g', label = 'as19')
+ax2.scatter(as_caida['deg_alpha'], as_caida['adj_alpha'], c = 'r', label = 'as-caida')
+for label, x, y in zip(AS['name'], AS['deg_alpha'], AS['adj_alpha']):
+            plt.annotate(
+                        label,
+                        xy = (x, y), xytext = (-20, 20),
+                        textcoords = 'offset points', ha = 'right', va = 'bottom',
+                        arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
+
+plt.legend()
+plt.title('as')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+top_cluster = AS[ AS['adj_alpha'] > 3.2]
+print 'top cluster'
+print top_cluster['name'].values
+middle_cluster = AS[(AS['adj_alpha'] > 3.0) & (AS['adj_alpha'] <= 3.2) & (AS['deg_alpha'] > 2.15)]
+print 'middle cluster'
+print middle_cluster['name'].values
+bottom_cluster = AS[ (AS['deg_alpha'] > 2.2) & (AS['adj_alpha'] < 3.1)]
+print 'bottom-cluster'
+print bottom_cluster['name'].values
+print 'as20'
+print as20
+plt.show()
+
+print('number of AS)', len(df[df['types'] == 'as']))
+print('len(as, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'as')])  )
+print('len(as, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'as') ])  )
+print('len (both)', len(AS))
+print('number of resampled as', len( df[ (df['types'] == 'as') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'as') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'as') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'as') & (df['lap_p'] >= 0.1) ] ) )
+print('number of resampled laplacians', len( df[ (df['types'] == 'as') & (df['resample_lap_alpha'] > 0.0) ] ) )
+print('number of resampled laplacians with power-law', len( df[ (df['types'] == 'as') & (df['resample_lap_p'] >= 0.1) ] ) )
+
+
+
+
+######ANALYSIS OF "OREGON" CATEGORY#####
+
+oregon = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'oregon')]
+one = oregon[oregon['subtype'] == 'oregon1']
+two = oregon[oregon['subtype'] == 'oregon2']
+fig3 = plt.figure()
+ax3 = fig3.add_subplot(111)
+ax3.scatter(one['deg_alpha'], one['adj_alpha'], c = 'b', label = 'oregon1')
+ax3.scatter(two['deg_alpha'], two['adj_alpha'], c = 'r', label = 'oregon2')
+plt.legend()
+plt.title('oregon')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+#plt.show()
+
+
+print('number of oregon)', len(df[df['types'] == 'oregon']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'oregon')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'oregon') ])  )
+print('len (both)', len(oregon))
+print('number of resampled oregon', len( df[ (df['types'] == 'oregon') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'oregon') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'oregon') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'oregon') & (df['lap_p'] >= 0.1) ] ) )
+print('number of resampled laplacians', len( df[ (df['types'] == 'oregon') & (df['resample_lap_alpha'] > 0.0) ] ) )
+print('number of resampled laplacians with power-law', len( df[ (df['types'] == 'oregon') & (df['resample_lap_p'] >= 0.1) ] ) )
+
+
+
+######ANALYSIS OF "ERDOS" CATEGORY#####
+
+erdos = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'Erdos')]
+fig4 = plt.figure()
+ax4 = fig4.add_subplot(111)
+ax4.scatter(erdos['deg_alpha'], erdos['adj_alpha'], c = 'b')
+plt.title('Erdos')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+#plt.show()
+
+print('number of Erdos)', len(df[df['types'] == 'Erdos']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'Erdos')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'Erdos') ])  )
+print('len (both)', len(erdos))
+print('number of resampled others', len( df[ (df['types'] == 'Erdos') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'Erdos') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'Erdos') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'Erdos') & (df['lap_p'] >= 0.1) ] ) )
+print('number of resampled laplacians', len( df[ (df['types'] == 'Erdos') & (df['resample_lap_alpha'] > 0.0) ] ) )
+print('number of resampled laplacians with power-law', len( df[ (df['types'] == 'Erdos') & (df['resample_lap_p'] >= 0.1) ] ) )
+
+
+
+######ANALYSIS OF "FACEBOOK" CATEGORY#####
+
+fb = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'facebook')]
+fig5 = plt.figure()
+ax5 = fig5.add_subplot(111)
+ax5.scatter(fb['deg_alpha'], fb['adj_alpha'], c = 'b')
+plt.title('Facebook')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+#plt.show()
+
+print('number of facebook)', len(df[df['types'] == 'facebook']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'facebook')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'facebook') ])  )
+print('len (both)', len(fb))
+print('number of resampled others', len( df[ (df['types'] == 'facebook') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'facebook') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'facebook') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'facebook') & (df['lap_p'] >= 0.1) ] ) )
+print('number of resampled laplacians', len( df[ (df['types'] == 'facebook') & (df['resample_lap_alpha'] > 0.0) ] ) )
+print('number of resampled laplacians with power-law', len( df[ (df['types'] == 'facebook') & (df['resample_lap_p'] >= 0.1) ] ) )
+
+
+
+
+
+######ANALYSIS OF "p2p" CATEGORY#####
+
+p2p = df[(df['adj_p'] >= 0.1) & (df['deg_p'] >=0.1) & (df['types'] == 'p2p')]
+fig6 = plt.figure()
+ax6 = fig6.add_subplot(111)
+ax6.scatter(p2p['deg_alpha'], p2p['adj_alpha'], c = 'b')
+plt.title('p2p')
+plt.xlabel('alpha in the degrees')
+plt.ylabel('alpha in the eigenvalues')
+#plt.show()
+
+print('number of p2p)', len(df[df['types'] == 'p2p']))
+print('len(other, degs)', len( df[ (df['deg_p'] >= 0.1) & (df['types'] == 'p2p')])  )
+print('len(other, eigs)', len( df[ (df['adj_p'] >= 0.1) & (df['types'] == 'p2p') ])  )
+print('len (both)', len(p2p))
+print('number of resampled others', len( df[ (df['types'] == 'p2p') & (df['resample_alpha'] > 0.0) ] ) )
+print('len(resample)', len( df[ (df['types'] == 'p2p') & (df['resample_p'] >= 0.1) ] ) )
+print('number of laplacian graphs', len( df[ (df['types'] == 'p2p') & (df['lap_alpha'] > 0.0) ] ) )
+print('len(lap)', len( df[ (df['types'] == 'p2p') & (df['lap_p'] >= 0.1) ] ) )
+print('number of resampled laplacians', len( df[ (df['types'] == 'p2p') & (df['resample_lap_alpha'] > 0.0) ] ) )
+print('number of resampled laplacians with power-law', len( df[ (df['types'] == 'p2p') & (df['resample_lap_p'] >= 0.1) ] ) )
